@@ -33,5 +33,3 @@ pub fn visualize_bitboard(bb: u64) {
     }
     println!("  a b c d e f g h");
 }
-
-
