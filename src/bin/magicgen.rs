@@ -16,7 +16,16 @@ fn helper_mask_and_movegen(
     for (x, y) in directions {
         let mut r = rank + x;
         let mut f = file + y;
-        while r > 0 && r < 7 && f > 0 && f < 7 {
+
+        let mut maxsize = 7;
+        let mut minsize = 0;
+
+        if movegen {
+            maxsize = 8;
+            minsize = -1;
+        }
+
+        while r > minsize && r < maxsize && f > minsize && f < maxsize {
             move_bitboard |= 1u64 << (r * 8 + f);
             if ((1 << r * 8 + f) & bit_board == 1) && movegen {
                 break;
