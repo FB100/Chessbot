@@ -1,9 +1,27 @@
 use chess_bot::board::Piece;
 use rand::RngCore;
+use std::fs::File;
+use std::io::{Error, Write,};
 
-fn main() {}
+fn main() {
+    let magic = Magic {
+        magic: 0,
+        mask: 0,
+        shift: 64,
+        offset: 0,
+    };
+    let magic_array: [Magic;64] = [magic.clone();64];
+    let mut file_bishop = File::create("src/constants/magics_bishop.rs").unwrap();
+    let mut file_rook = File::create("src/constants/magics_rook.rs").unwrap();
 
-struct Magic {
+
+    write_magic_to_file(&magic_array,Piece::BishopBlack, &mut file_bishop).expect("TODO: panic message");
+    write_magic_to_file(&magic_array,Piece::RookBlack, &mut file_rook).expect("TODO: panic message");
+
+}
+
+#[derive(Copy, Clone)]
+pub struct Magic {
     pub magic: u64,
     pub mask: u64,
     pub shift: u32,
@@ -70,7 +88,7 @@ fn create_slider_movement_mask(square: &u8, piece: Piece) -> u64 {
     mask
 }
 
-fn movegen_naive(square: &u8, piece: Piece, bit_board: &u64) -> Vec<u64>  {
+fn movegen_naive(square: &u8, piece: Piece, bit_board: &u64) -> Vec<u64> {
     let move_bitboard;
 
     let directions_bishop = [(1, 1), (1, -1), (-1, 1), (-1, -1)];
@@ -99,8 +117,9 @@ fn movegen_naive(square: &u8, piece: Piece, bit_board: &u64) -> Vec<u64>  {
         }
         _ => move_bitboard = 0,
     }
-    let moves: Vec<u64> = generate_occupancies(create_slider_movement_mask(square,piece)).iter()
-        .map(|&occ| move_bitboard)
+    let moves: Vec<u64> = generate_occupancies(create_slider_movement_mask(square, piece))
+        .iter()
+        .map(|&_occ| move_bitboard)
         .collect();
     moves
 }
@@ -137,4 +156,42 @@ fn sparse_random_u64() -> u64 {
     } else {
         candidate
     }
+}
+
+fn write_magic_to_file(magics: &[Magic; 64], piece: Piece, file: &mut File) -> Result<(), Error> {
+    writeln!(file, "#[derive(Copy, Clone)] pub struct Magic {{pub magic: u64,pub mask: u64,pub shift: u32,pub offset: usize,}}")?;
+    match piece {
+        Piece::BishopWhite => {writeln!(file, "pub const MAGICS_B: [Magic; 64] = [")?;}
+        Piece::RookWhite => {writeln!(file, "pub const MAGICS_R: [Magic; 64] = [")?;}
+        Piece::BishopBlack => {writeln!(file, "pub const MAGICS_B: [Magic; 64] = [")?;}
+        Piece::RookBlack => {writeln!(file, "pub const MAGICS_R: [Magic; 64] = [")?;}
+        _ => panic!("write_magic_to_file can only handle bishops and rooks.")
+    }
+
+    for m in magics.iter() {
+        writeln!(
+            file,
+            "    Magic {{ magic: 0x{:016x}, mask: 0x{:016x}, shift: {}, offset: {} }},",
+            m.magic, m.mask, m.shift, m.offset
+        )?;
+    }
+    writeln!(file, "];")?;
+    Ok(())
+}
+
+fn find_magic(piece: Piece, square: &u8, min_relevant_bits: &u8) -> Magic {
+    let magic = Magic {
+        magic: 0,
+        mask: 0,
+        shift: 0,
+        offset: 0,
+    };
+
+    magic
+}
+
+fn find_all_magics() {
+
+
+
 }
