@@ -17,6 +17,7 @@ fn helper_mask_and_movegen(
         let mut r = rank + x;
         let mut f = file + y;
 
+        // Masks, don't have to expand to the Edge, Movegen does
         let mut maxsize = 7;
         let mut minsize = 0;
 
@@ -93,6 +94,31 @@ fn movegen_naive(square: &u8, piece: Piece, bit_board: &u64) -> u64 {
 
     move_bitboard
 }
+
+pub fn generate_occupancies(mask: u64) -> Vec<u64> {
+    let mut bit_positions = Vec::new();
+    for i in 0..64 {
+        if (mask >> i) & 1 != 0 {
+            bit_positions.push(i);
+        }
+    }
+
+    let num_bits = bit_positions.len();
+    let mut occupancies = Vec::with_capacity(1 << num_bits);
+
+    for index in 0..(1 << num_bits) {
+        let mut occ = 0u64;
+        for (j, &pos) in bit_positions.iter().enumerate() {
+            if (index >> j) & 1 != 0 {
+                occ |= 1u64 << pos;
+            }
+        }
+        occupancies.push(occ);
+    }
+
+    occupancies
+}
+
 
 fn find_magic(bit_board: &u64) -> u64 {
     movegen_naive(&0, Piece::BishopBlack, &0);
