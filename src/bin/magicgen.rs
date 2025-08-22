@@ -1,6 +1,14 @@
 use chess_bot::board::Piece;
+use rand::RngCore;
 
 fn main() {}
+
+struct Magic {
+    pub magic: u64,
+    pub mask: u64,
+    pub shift: u32,
+    pub offset: usize,
+}
 
 fn helper_mask_and_movegen(
     movegen: bool,
@@ -62,7 +70,7 @@ fn create_slider_movement_mask(square: &u8, piece: Piece) -> u64 {
     mask
 }
 
-fn movegen_naive(square: &u8, piece: Piece, bit_board: &u64) -> u64 {
+fn movegen_naive(square: &u8, piece: Piece, bit_board: &u64) -> Vec<u64>  {
     let move_bitboard;
 
     let directions_bishop = [(1, 1), (1, -1), (-1, 1), (-1, -1)];
@@ -91,8 +99,10 @@ fn movegen_naive(square: &u8, piece: Piece, bit_board: &u64) -> u64 {
         }
         _ => move_bitboard = 0,
     }
-
-    move_bitboard
+    let moves: Vec<u64> = generate_occupancies(create_slider_movement_mask(square,piece)).iter()
+        .map(|&occ| move_bitboard)
+        .collect();
+    moves
 }
 
 fn generate_occupancies(mask: u64) -> Vec<u64> {
@@ -119,8 +129,12 @@ fn generate_occupancies(mask: u64) -> Vec<u64> {
     occupancies
 }
 
-
-fn find_magic(bit_board: &u64) -> u64 {
-    movegen_naive(&0, Piece::BishopBlack, &0);
-    0
+fn sparse_random_u64() -> u64 {
+    let mut rng = rand::rng();
+    let candidate = rng.next_u64() & rng.next_u64() & rng.next_u64();
+    if candidate.count_ones() < 4 || candidate.count_ones() > 10 {
+        sparse_random_u64() // Try again
+    } else {
+        candidate
+    }
 }
