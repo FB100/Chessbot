@@ -95,7 +95,7 @@ fn movegen_naive(square: &u8, piece: Piece, bit_board: &u64) -> u64 {
     move_bitboard
 }
 
-pub fn generate_occupancies(mask: u64) -> Vec<u64> {
+fn generate_occupancies(mask: u64) -> Vec<u64> {
     let mut bit_positions = Vec::new();
     for i in 0..64 {
         if (mask >> i) & 1 != 0 {
