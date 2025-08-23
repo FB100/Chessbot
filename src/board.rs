@@ -17,3 +17,15 @@ pub enum Piece {
     QueenBlack,
     KingBlack,
 }
+
+#[derive(Clone, Copy)]
+pub enum PieceColorless {
+    Pawn,
+    Knight,
+    Bishop,
+    Rook,
+    Queen,
+    King,
+}
+
+//TODO piece -> colorless and the other way round
