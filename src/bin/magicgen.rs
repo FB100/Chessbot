@@ -1,31 +1,19 @@
+use std::collections::hash_map::Entry;
 use chess_bot::board::Piece;
 use rand::RngCore;
 use std::fs::File;
-use std::io::{Error, Write,};
+use std::io::{Error, Write};
 
 fn main() {
-    let magic = Magic {
-        magic: 0,
-        mask: 0,
-        shift: 64,
-        offset: 0,
-    };
-    let magic_array: [Magic;64] = [magic.clone();64];
-    let mut file_bishop = File::create("src/constants/magics_bishop.rs").unwrap();
-    let mut file_rook = File::create("src/constants/magics_rook.rs").unwrap();
-
-
-    write_magic_to_file(&magic_array,Piece::BishopBlack, &mut file_bishop).expect("TODO: panic message");
-    write_magic_to_file(&magic_array,Piece::RookBlack, &mut file_rook).expect("TODO: panic message");
-
+    generate_initial_magic_files()
 }
 
 #[derive(Copy, Clone)]
-pub struct Magic {
-    pub magic: u64,
-    pub mask: u64,
-    pub shift: u32,
-    pub offset: usize,
+struct Magic {
+    magic: u64,
+    mask: u64,
+    shift: u8,
+    offset: usize,
 }
 
 fn helper_mask_and_movegen(
@@ -159,13 +147,24 @@ fn sparse_random_u64() -> u64 {
 }
 
 fn write_magic_to_file(magics: &[Magic; 64], piece: Piece, file: &mut File) -> Result<(), Error> {
-    writeln!(file, "#[derive(Copy, Clone)] pub struct Magic {{pub magic: u64,pub mask: u64,pub shift: u32,pub offset: usize,}}")?;
+    writeln!(
+        file,
+        "#[derive(Copy, Clone)] struct Magic {{ magic: u64, mask: u64, shift: u8, offset: usize,}}"
+    )?;
     match piece {
-        Piece::BishopWhite => {writeln!(file, "pub const MAGICS_B: [Magic; 64] = [")?;}
-        Piece::RookWhite => {writeln!(file, "pub const MAGICS_R: [Magic; 64] = [")?;}
-        Piece::BishopBlack => {writeln!(file, "pub const MAGICS_B: [Magic; 64] = [")?;}
-        Piece::RookBlack => {writeln!(file, "pub const MAGICS_R: [Magic; 64] = [")?;}
-        _ => panic!("write_magic_to_file can only handle bishops and rooks.")
+        Piece::BishopWhite => {
+            writeln!(file, "const MAGICS_B: [Magic; 64] = [")?;
+        }
+        Piece::RookWhite => {
+            writeln!(file, "const MAGICS_R: [Magic; 64] = [")?;
+        }
+        Piece::BishopBlack => {
+            writeln!(file, "const MAGICS_B: [Magic; 64] = [")?;
+        }
+        Piece::RookBlack => {
+            writeln!(file, "const MAGICS_R: [Magic; 64] = [")?;
+        }
+        _ => panic!("write_magic_to_file can only handle bishops and rooks."),
     }
 
     for m in magics.iter() {
@@ -179,19 +178,56 @@ fn write_magic_to_file(magics: &[Magic; 64], piece: Piece, file: &mut File) -> R
     Ok(())
 }
 
-fn find_magic(piece: Piece, square: &u8, min_relevant_bits: &u8) -> Magic {
+fn generate_initial_magic_files(){
     let magic = Magic {
         magic: 0,
         mask: 0,
         shift: 0,
         offset: 0,
     };
+    let magic_array: [Magic; 64] = [magic.clone(); 64];
+    let mut file_bishop = File::create("src/constants/magics_bishop.rs").unwrap();
+    let mut file_rook = File::create("src/constants/magics_rook.rs").unwrap();
 
-    magic
+    write_magic_to_file(&magic_array, Piece::BishopBlack, &mut file_bishop)
+        .expect("TODO: panic message");
+    write_magic_to_file(&magic_array, Piece::RookBlack, &mut file_rook)
+        .expect("TODO: panic message");
+}
+
+fn find_magic(piece: Piece, mask: u64, square: &u8, min_relevant_bits: &u8) -> Option<Magic> {
+    let mut magic = Magic {
+        magic: sparse_random_u64(),
+        mask,
+        shift: 64-min_relevant_bits,
+        offset: 0,
+    };
+
+    let mut table = std::collections::HashMap::new();
+    let occupancies = generate_occupancies(mask);
+
+    for i in *min_relevant_bits..64 {
+        for (_j, &occ) in occupancies.iter().enumerate() {
+            let index = ((occ.wrapping_mul(magic.magic)) >> magic.shift) as usize;
+            let possible_move = movegen_naive(square, piece, &occ);
+
+            if let Some(existing) = table.get(&index) {
+                if *existing != possible_move {
+                    return None;
+                }
+            } else {
+                table.insert(index, possible_move);
+            }
+        }
+        magic.shift = 64-i;
+    }
+    if(magic.shift < 64-min_relevant_bits) {
+        return Some(magic);
+    }
+    None
 }
 
 fn find_all_magics() {
-
 
 
 }
