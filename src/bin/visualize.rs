@@ -4,14 +4,23 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() != 2 {
-        eprintln!("Usage: {} <number>", args[0]);
+        eprintln!("Usage: {} <number|0xHEX>", args[0]);
         std::process::exit(1);
     }
 
-    match args[1].parse::<u64>() {
-        Ok(num) => visualize_bitboard(num),
+    let input = &args[1];
+
+    // allow "0x" hex parsing or decimal
+    let num = if let Some(stripped) = input.strip_prefix("0x") {
+        u64::from_str_radix(stripped, 16)
+    } else {
+        input.parse::<u64>()
+    };
+
+    match num {
+        Ok(bb) => visualize_bitboard(bb),
         Err(_) => {
-            eprintln!("Error: '{}' is not a valid bitboard", args[1]);
+            eprintln!("Error: '{}' is not a valid bitboard", input);
             std::process::exit(1);
         }
     }
