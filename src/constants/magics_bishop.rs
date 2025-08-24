@@ -1,10 +1,5 @@
-#[derive(Copy, Clone)]
-pub struct Magic {
-    pub magic: u64,
-    pub mask: u64,
-    pub shift: u8,
-    pub offset: usize,
-}
+use crate::constants::Magic;
+
 pub const MAGICS_B: [Magic; 64] = [
     Magic {
         magic: 0x0000000000000000,

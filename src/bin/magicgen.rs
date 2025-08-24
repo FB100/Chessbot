@@ -1,12 +1,39 @@
-use chess_bot::board::Piece;
-use chess_bot::constants::magics_bishop::{MAGICS_B, Magic};
+use chess_bot::board::PieceColorless;
+use chess_bot::constants::Magic;
+use chess_bot::constants::magics_bishop::MAGICS_B;
 use chess_bot::constants::magics_rook::MAGICS_R;
 use rand::RngCore;
+use std::env;
 use std::fs::File;
 use std::io::{Error, Write};
 
 fn main() {
-    generate_initial_magic_files()
+    let args: Vec<String> = env::args().collect();
+
+    match args.len() {
+        1 => print_wrong_input(&args[0]),
+        2 => {
+            if args[1] == "h" || args[1] == "help" {
+                eprintln!("Initialise new magics: {} < i | init > [filename]", args[0]);
+                eprintln!(
+                    "Refine existing magics: {} <bishop: bool> [filename]",
+                    args[0]
+                );
+                std::process::exit(0);
+            } else if args[1] == "i" || args[1] == "init" {
+                generate_initial_magic_files()
+            } else {
+                print_wrong_input(&args[0])
+            }
+        }
+        3 => {}
+        _ => print_wrong_input(&args[0]),
+    }
+}
+
+fn print_wrong_input(command: &str) {
+    eprintln!("For help: {} < h | help >", command);
+    std::process::exit(1);
 }
 
 fn helper_mask_and_movegen(
@@ -48,22 +75,18 @@ fn helper_mask_and_movegen(
     }
     move_bitboard
 }
-fn create_slider_movement_mask(square: &usize, piece: Piece) -> u64 {
+fn create_slider_movement_mask(square: &usize, piece: PieceColorless) -> u64 {
     let mask;
 
     let directions_bishop = [(1, 1), (1, -1), (-1, 1), (-1, -1)];
     let directions_rook = [(0, 1), (0, -1), (1, 0), (-1, 0)];
 
     match piece {
-        Piece::BishopWhite => mask = helper_mask_and_movegen(false, square, &0, directions_bishop),
-        Piece::BishopBlack => mask = helper_mask_and_movegen(false, square, &0, directions_bishop),
-        Piece::RookWhite => mask = helper_mask_and_movegen(false, square, &0, directions_rook),
-        Piece::RookBlack => mask = helper_mask_and_movegen(false, square, &0, directions_rook),
-        Piece::QueenWhite => {
+        PieceColorless::Bishop => {
             mask = helper_mask_and_movegen(false, square, &0, directions_bishop)
-                | helper_mask_and_movegen(false, square, &0, directions_rook)
         }
-        Piece::QueenBlack => {
+        PieceColorless::Rook => mask = helper_mask_and_movegen(false, square, &0, directions_rook),
+        PieceColorless::Queen => {
             mask = helper_mask_and_movegen(false, square, &0, directions_bishop)
                 | helper_mask_and_movegen(false, square, &0, directions_rook)
         }
@@ -73,30 +96,20 @@ fn create_slider_movement_mask(square: &usize, piece: Piece) -> u64 {
     mask
 }
 
-fn movegen_naive(square: &usize, piece: Piece, bit_board: &u64) -> Vec<u64> {
+fn movegen_naive(square: &usize, piece: PieceColorless, bit_board: &u64) -> Vec<u64> {
     let move_bitboard;
 
     let directions_bishop = [(1, 1), (1, -1), (-1, 1), (-1, -1)];
     let directions_rook = [(0, 1), (0, -1), (1, 0), (-1, 0)];
 
     match piece {
-        Piece::BishopWhite => {
+        PieceColorless::Bishop => {
             move_bitboard = helper_mask_and_movegen(true, square, bit_board, directions_bishop)
         }
-        Piece::BishopBlack => {
-            move_bitboard = helper_mask_and_movegen(true, square, bit_board, directions_bishop)
-        }
-        Piece::RookWhite => {
+        PieceColorless::Rook => {
             move_bitboard = helper_mask_and_movegen(true, square, bit_board, directions_rook)
         }
-        Piece::RookBlack => {
-            move_bitboard = helper_mask_and_movegen(true, square, bit_board, directions_rook)
-        }
-        Piece::QueenWhite => {
-            move_bitboard = helper_mask_and_movegen(true, square, bit_board, directions_bishop)
-                | helper_mask_and_movegen(true, square, bit_board, directions_rook)
-        }
-        Piece::QueenBlack => {
+        PieceColorless::Queen => {
             move_bitboard = helper_mask_and_movegen(true, square, bit_board, directions_bishop)
                 | helper_mask_and_movegen(true, square, bit_board, directions_rook)
         }
@@ -143,22 +156,20 @@ fn sparse_random_u64() -> u64 {
     }
 }
 
-fn write_magic_to_file(magics: &[Magic; 64], piece: Piece, file: &mut File) -> Result<(), Error> {
+fn write_magic_to_file(
+    magics: &[Magic; 64],
+    piece: PieceColorless,
+    file: &mut File,
+) -> Result<(), Error> {
     writeln!(
         file,
         "#[derive(Copy, Clone)] pub struct Magic {{pub magic: u64,pub mask: u64,pub shift: u8,pub offset: usize,}}"
     )?;
     match piece {
-        Piece::BishopWhite => {
+        PieceColorless::Bishop => {
             writeln!(file, "pub const MAGICS_B: [Magic; 64] = [")?;
         }
-        Piece::RookWhite => {
-            writeln!(file, "pub const MAGICS_R: [Magic; 64] = [")?;
-        }
-        Piece::BishopBlack => {
-            writeln!(file, "pub const MAGICS_B: [Magic; 64] = [")?;
-        }
-        Piece::RookBlack => {
+        PieceColorless::Rook => {
             writeln!(file, "pub const MAGICS_R: [Magic; 64] = [")?;
         }
         _ => panic!("write_magic_to_file can only handle bishops and rooks."),
@@ -185,21 +196,21 @@ fn generate_initial_magic_files() {
     let mut magic_array: [Magic; 64] = [magic.clone(); 64];
 
     for i in 0..64 {
-        magic_array[i].mask = create_slider_movement_mask(&i, Piece::BishopBlack);
+        magic_array[i].mask = create_slider_movement_mask(&i, PieceColorless::Bishop);
     }
     let mut file_bishop = File::create("src/constants/magics_bishop.rs").unwrap();
-    write_magic_to_file(&magic_array, Piece::BishopBlack, &mut file_bishop)
+    write_magic_to_file(&magic_array, PieceColorless::Bishop, &mut file_bishop)
         .expect("TODO: panic message");
 
     for i in 0..64 {
-        magic_array[i].mask = create_slider_movement_mask(&i, Piece::RookBlack);
+        magic_array[i].mask = create_slider_movement_mask(&i, PieceColorless::Rook);
     }
     let mut file_rook = File::create("src/constants/magics_rook.rs").unwrap();
-    write_magic_to_file(&magic_array, Piece::RookBlack, &mut file_rook)
+    write_magic_to_file(&magic_array, PieceColorless::Rook, &mut file_rook)
         .expect("TODO: panic message");
 }
 
-fn find_magic(piece: Piece, mask: u64, square: &usize, max_shift: &u8) -> Option<Magic> {
+fn find_magic(piece: PieceColorless, mask: u64, square: &usize, max_shift: &u8) -> Option<Magic> {
     let mut magic = Magic {
         magic: sparse_random_u64(),
         mask,
@@ -231,9 +242,15 @@ fn find_magic(piece: Piece, mask: u64, square: &usize, max_shift: &u8) -> Option
     None
 }
 
-fn find_all_magics(piece: Piece, file: &mut File) {
-    for runs in 0..10 {
-        let mut temp_magics = MAGICS_B.clone();
+fn find_all_magics(piece: PieceColorless, file: &mut File) {
+    let mut temp_magics;
+    match piece {
+        PieceColorless::Bishop => temp_magics = MAGICS_B.clone(),
+        PieceColorless::Rook => temp_magics = MAGICS_R.clone(),
+        _ => panic!(""),
+    }
+
+    for _runs in 0..10 {
         for square in 0..64 {
             let possible_magic = find_magic(
                 piece,
